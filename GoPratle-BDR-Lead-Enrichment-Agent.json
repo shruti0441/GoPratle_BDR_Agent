@@ -1,0 +1,365 @@
+{
+  "name": "GoPratle-BDR-Lead-Enrichment-Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1lKEQIwysmEPQa_2cXeHo1FYmlmszD2hmGO3L5NJIg3k",
+          "mode": "list",
+          "cachedResultName": "GoPratle_BDR_Lead_Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lKEQIwysmEPQa_2cXeHo1FYmlmszD2hmGO3L5NJIg3k/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lKEQIwysmEPQa_2cXeHo1FYmlmszD2hmGO3L5NJIg3k/edit#gid=0"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "883fbcbf-b072-41ad-a2b0-2f7689ba0dba",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "sqwJDNED4dcUHPSw",
+          "name": "Google Sheets Trigger account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"api_key\": \"tvly-zbBCz-hqTaW9ybxsuOspx4wac0W3q3nAZTGY7TCVn9WkkW6e\",\n  \"query\": \"={{ $json.Company_Name + ' ' + $json.City + ' founder HR events marketing partnerships manager LinkedIn' }}\",\n  \"search_depth\": \"basic\",\n  \"max_results\": 5,\n  \"include_answer\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "662776ea-7154-4fae-acec-286195428e3c",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json.results) }}",
+        "options": {
+          "systemMessage": "You are a B2B lead enrichment and outreach assistant\nworking for GoPratle.\n\nGoPratle connects event hosts with vetted event\nplanners, DJs, and professional event crews.\n\nYour tasks:\n\n1. Analyze the provided web search results.\n2. Identify the most relevant decision-maker for\n   events, marketing, partnerships, or HR.\n3. Extract their name and designation.\n4. Extract their LinkedIn URL if available.\n5. Extract email only if publicly available.\n6. Never invent missing contact information.\n7. Include the original source URL.\n8. Generate a personalized 3-line outreach pitch\n   explaining how GoPratle can help the company.\n\nReturn only valid JSON in this format:\n\n{\n  \"lead_name\": \"\",\n  \"designation\": \"\",\n  \"linkedin_url\": \"\",\n  \"email\": \"\",\n  \"lead_source\": \"\",\n  \"lead_reason\": \"\",\n  \"personalized_pitch\": \"\",\n  \"lead_status\": \"Qualified\"\n}\n\nIf no suitable lead is found, return\nlead_status as \"Not Found\".\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        448,
+        0
+      ],
+      "id": "3bb960c4-2588-4d47-ae7c-98b49673d3ef",
+      "name": "AI Lead Enrichment & Pitch Generator"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        320,
+        208
+      ],
+      "id": "bc80dff2-7218-4b1a-b431-a038c2ce7684",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "D6hH5DmLzSVclqaA",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst result = JSON.parse($input.first().json.output);\n\nconst sheetData = $('Google Sheets Trigger').first().json;\n\nreturn [\n  {\n    json: {\n      Company_Name: sheetData.Company_Name,\n      City: sheetData.City,\n      Status: \"Enriched\",\n      Lead_Name: result.lead_name,\n      Designation: result.designation,\n      LinkedIn_URL: result.linkedin_url,\n      Email: result.email,\n      Lead_Source: result.lead_source,\n      Personalized_Pitch: result.personalized_pitch,\n      Outreach_Status: \"Pending Draft\",\n      Followup_Date: \"\"\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        0
+      ],
+      "id": "651ba19a-31c4-4adb-a023-944b1298ff7f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1lKEQIwysmEPQa_2cXeHo1FYmlmszD2hmGO3L5NJIg3k",
+          "mode": "list",
+          "cachedResultName": "GoPratle_BDR_Lead_Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lKEQIwysmEPQa_2cXeHo1FYmlmszD2hmGO3L5NJIg3k/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lKEQIwysmEPQa_2cXeHo1FYmlmszD2hmGO3L5NJIg3k/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company_Name": "={{ $json.Company_Name }}",
+            "City": "={{ $json.City }}",
+            "Status": "={{ $json.Status }}",
+            "Lead_Name": "={{ $json.Lead_Name }}",
+            "Designation": "={{ $json.Designation }}",
+            "LinkedIn_URL": "={{ $json.LinkedIn_URL }}",
+            "Email": "={{ $json.Email }}",
+            "Lead_Source": "={{ $json.Lead_Source }}",
+            "Personalized_Pitch": "={{ $json.Personalized_Pitch }}",
+            "Outreach_Status": "={{ $json.Outreach_Status }}",
+            "Followup_Date": "={{ $json.Followup_Date }}"
+          },
+          "matchingColumns": [
+            "Company_Name"
+          ],
+          "schema": [
+            {
+              "id": "Company_Name",
+              "displayName": "Company_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead_Name",
+              "displayName": "Lead_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Designation",
+              "displayName": "Designation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LinkedIn_URL",
+              "displayName": "LinkedIn_URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead_Source",
+              "displayName": "Lead_Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Personalized_Pitch",
+              "displayName": "Personalized_Pitch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Outreach_Status",
+              "displayName": "Outreach_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Followup_Date",
+              "displayName": "Followup_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "8109f60e-5bee-409c-8d20-f93450c703cf",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "x8jQLquOJp28ZCFo",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "AI Lead Enrichment & Pitch Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Lead Enrichment & Pitch Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Lead Enrichment & Pitch Generator": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "155375a0-31f3-4d8c-8f6b-04facc66c1ec",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "196725ba122223f458798990c5f904ff155d1dbc36a908b8ee9d45d3135c566c"
+  },
+  "nodeGroups": [],
+  "id": "BGzTIsb9lrfX1fqJ",
+  "tags": []
+}
